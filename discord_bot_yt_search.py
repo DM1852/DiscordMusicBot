@@ -22,22 +22,23 @@ def yt_search(query: str):
 
     #try reject cookies if it shows up
     try:
-        reject_cookies_btn = driver.find_element(
-            By.XPATH,
-            "/html/body/ytd-app/ytd-consent-bump-v2-lightbox/tp-yt-paper-dialog/div[4]/div[2]/div[6]/div[1]/ytd-button-renderer[1]/yt-button-shape/button/yt-touch-feedback-shape",
-        )
-        reject_cookies_btn.click()
-        print("Rejected cookies")
-        time.sleep(2)
-    except Exception:
-        print("No cookie popup or selector not found")
+        try:
+            reject_cookies_btn = driver.find_element(
+                By.XPATH,
+                "/html/body/ytd-app/ytd-consent-bump-v2-lightbox/tp-yt-paper-dialog/div[4]/div[2]/div[6]/div[1]/ytd-button-renderer[1]/yt-button-shape/button/yt-touch-feedback-shape",
+            )
+            reject_cookies_btn.click()
+            print("Rejected cookies")
+            time.sleep(2)
+        except Exception:
+            print("No cookie popup or selector not found")
 
         #search for the video
         search_box = driver.find_element(By.NAME, "search_query")
         search_box.send_keys(query)
         time.sleep(1)
         search_box.submit()
-        
+            
         print(f"Searching for: {query}")
         time.sleep(3)  #wait for results
 
