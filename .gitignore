@@ -2,7 +2,7 @@
 .env
 
 # Virtual environment
-.venv/
+discBotEnv1
 
 # Python bytecode cache
 __pycache__/

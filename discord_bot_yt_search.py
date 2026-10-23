@@ -9,53 +9,52 @@ import time
 
 GECKO_PATH = r"C:\geckodriver.exe"
 
-# --- setup browser ---
-opts = Options()
-opts.add_argument("--headless")
-service = Service(executable_path=GECKO_PATH)
-driver = webdriver.Firefox(service=service, options=opts)
-
-
 #==================================================================================================================================================================================
 def yt_search(query: str):
     """Uses Selenium to get the first real YouTube video URL + reject cookies."""
+    # --- setup browser ---
+    opts = Options()
+    opts.add_argument("--headless")
+    service = Service(executable_path=GECKO_PATH)
+    driver = webdriver.Firefox(service=service, options=opts)
     driver.get("https://www.youtube.com")
     time.sleep(3)  # wait for page load
 
-    # Try reject cookies if it shows up
+    #try reject cookies if it shows up
     try:
         reject_cookies_btn = driver.find_element(
             By.XPATH,
             "/html/body/ytd-app/ytd-consent-bump-v2-lightbox/tp-yt-paper-dialog/div[4]/div[2]/div[6]/div[1]/ytd-button-renderer[1]/yt-button-shape/button/yt-touch-feedback-shape",
         )
         reject_cookies_btn.click()
-        print("✅ Rejected cookies")
+        print("Rejected cookies")
         time.sleep(2)
     except Exception:
-        print("⚠️ No cookie popup or selector not found")
+        print("No cookie popup or selector not found")
 
-    # Search for the video
-    search_box = driver.find_element(By.NAME, "search_query")
-    search_box.send_keys(query)
-    time.sleep(1)
-    search_box.submit()
-    
-    print(f"🔎 Searching for: {query}")
-    time.sleep(3)  # wait for results
+        #search for the video
+        search_box = driver.find_element(By.NAME, "search_query")
+        search_box.send_keys(query)
+        time.sleep(1)
+        search_box.submit()
+        
+        print(f"Searching for: {query}")
+        time.sleep(3)  #wait for results
 
-    # Get first video (skip ads)
-    videos = driver.find_elements(By.XPATH, "//ytd-video-renderer//a[@id='video-title']")
-    if not videos:
-        print("❌ No video elements found.")
-        return None, None
+        #get first video (skip ads)
+        videos = driver.find_elements(By.XPATH, "//ytd-video-renderer//a[@id='video-title']")
+        if not videos:
+            print("No video elements found.")
+            return None, None
 
-    first_url = videos[0].get_attribute("href")
-    print("✅ Found video:", first_url)
+        first_url = videos[0].get_attribute("href")
+        print("Found video:", first_url)
 
-    # Return URL and cookies
-    cookies = driver.get_cookies()
-    return first_url, cookies
-
+        #return URL and cookies and close driver
+        cookies = driver.get_cookies()
+        return first_url, cookies
+    finally:
+        driver.quit()
 
 #==================================================================================================================================================================================
 def save_selenium_cookies(cookies, path):
@@ -74,8 +73,7 @@ def save_selenium_cookies(cookies, path):
                 "\t".join([domain, include_subs, path_, secure, expires, name, value])
                 + "\n"
             )
-    print(f"🍪 Saved cookies to: {path}")
-
+    print(f"Saved cookies to: {path}")
 
 #==================================================================================================================================================================================
 
@@ -99,14 +97,10 @@ def download_audio_with_ytdlp(video_url, cookie_file):
         }
     }
 }
-
-
-    print(f"🎧 Starting download for: {video_url}")
+    print(f"Starting download for: {video_url}")
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
-        print(f"✅ Download complete: {info.get('title', 'Unknown Title')}")
-
-
+        print(f"Download complete: {info.get('title', 'Unknown Title')}")
 
 #==================================================================================================================================================================================
 if __name__ == "__main__":
@@ -115,7 +109,7 @@ if __name__ == "__main__":
         url, cookies = yt_search(q)
 
         if not url:
-            print("❌ Could not find video.")
+            print("Could not find video.")
         else:
             # Save cookies to temp file
             tmp_cookiefile = os.path.join(tempfile.gettempdir(), "yt_cookies.txt")
@@ -123,6 +117,5 @@ if __name__ == "__main__":
 
             # Download using yt-dlp
             download_audio_with_ytdlp(url, tmp_cookiefile)
-
-    finally:
-        driver.quit()
+    except Exception as e:
+        print(e)

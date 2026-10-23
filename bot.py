@@ -10,15 +10,13 @@ import tempfile
 import pyttsx3
 from glob import glob
 import subprocess
-import asyncio
-
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 SONG_QUEUES = {}
 GUILD_ID = 730099461816189009
-POWERSHELL_PATH = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-SCRIPT_PATH = r"C:\Users\AMDUser1\Desktop\PZ_Server_Scripts\pz.ps1"
+POWERSHELL_PATH = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" #path to powershell exe
+SCRIPT_PATH = r"C:\Users\AMDUser1\Desktop\PZ_Server_Scripts\pz.ps1" #path to project zomboid remote server control script
 # ---------------- Discord Setup ----------------
 intents = discord.Intents.default()
 intents.message_content = True
@@ -34,7 +32,7 @@ async def play_next(guild):
     queue = get_queue(guild.id)
 
     if not queue:
-        # Queue empty → disconnect if still connected
+        #if queue empty disconnect if still connected
         vc = guild.voice_client
         if vc:
             await vc.disconnect()
@@ -47,7 +45,7 @@ async def play_next(guild):
 
     vc = guild.voice_client
     if vc is None:
-        return  # shouldn't happen
+        return  #shouldn't happen
 
     def after_playing(err):
         coro = play_next(guild)
@@ -76,33 +74,32 @@ async def play(interaction: discord.Interaction, song_query: str):
 
     await interaction.followup.send(f"🔎 Searching YouTube for: **{song_query}**...")
 
-    # 1️⃣ YouTube search
-    url, cookies = discord_bot_yt_search.yt_search(song_query)
+    #YT search
+    url, cookies = await asyncio.to_thread(discord_bot_yt_search.yt_search, song_query)
     if not url:
         await interaction.followup.send("❌ No results found.")
         return
 
-    # 2️⃣ Save cookies
+    #save cookies
     tmp_cookiefile = os.path.join(tempfile.gettempdir(), "yt_cookies.txt")
     discord_bot_yt_search.save_selenium_cookies(cookies, tmp_cookiefile)
 
-    # 3️⃣ Download MP3
-    discord_bot_yt_search.download_audio_with_ytdlp(url, tmp_cookiefile)
-
+    #download MP3
+    await asyncio.to_thread(discord_bot_yt_search.download_audio_with_ytdlp, url,tmp_cookiefile)
     mp3_files = glob("*.mp3")
     if not mp3_files:
         await interaction.followup.send("❌ Download failed.")
         return
 
-    latest_file = max(mp3_files, key=os.path.getctime)  # newest
+    latest_file = max(mp3_files, key=os.path.getctime)  #newest
 
-    # 4️⃣ Add to queue
+    #add to queue
     queue = get_queue(interaction.guild.id)
     queue.append(latest_file)
 
     await interaction.followup.send(f"🎶 Added to queue: **{os.path.basename(latest_file)}**")
 
-    # 5️⃣ If bot isn't playing anything → start
+    #if bot isn't playing anything start
     if not voice_client.is_playing():
         await play_next(interaction.guild)
 
@@ -179,10 +176,10 @@ async def say(interaction: discord.Interaction, text: str):
     app_commands.Choice(name="status", value="status"),
 ])
 async def pz(interaction: discord.Interaction, action: app_commands.Choice[str]):
-    # ✅ Acknowledge immediately
+    #acknowledge immediately
     await interaction.response.defer(thinking=True)
 
-    # ✅ Move the blocking call into a background function
+    #move the blocking call into a background function
     def run_powershell():
         return subprocess.run(
             [
@@ -195,7 +192,7 @@ async def pz(interaction: discord.Interaction, action: app_commands.Choice[str])
             text=True
         )
 
-    # ✅ Run it without blocking Discord
+    #run it without blocking Discord
     result = await asyncio.to_thread(run_powershell)
 
     output = result.stdout.strip() or "No output."
@@ -204,15 +201,6 @@ async def pz(interaction: discord.Interaction, action: app_commands.Choice[str])
         f"🧟 **Project Zomboid — {action.value}**\n```\n{output}\n```"
     )
 
-
-"""
-@bot.event
-async def on_ready():
-    guild = discord.Object(id=GUILD_ID)
-    synced = await bot.tree.sync(guild=guild)
-    print(f"Synced {len(synced)} commands to guild!")
-    print(f"{bot.user} is online!")
-"""
 @bot.event
 async def on_ready():
     synced = await bot.tree.sync()
