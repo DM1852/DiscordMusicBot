@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import discord
 from discord.ext import commands
@@ -11,16 +12,35 @@ import pyttsx3
 from glob import glob
 import subprocess
 
+log = logging.getLogger(__name__)
 load_dotenv()
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 SONG_QUEUES = {}
 GUILD_ID = 730099461816189009
 POWERSHELL_PATH = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" #path to powershell exe
 SCRIPT_PATH = r"C:\Users\AMDUser1\Desktop\PZ_Server_Scripts\pz.ps1" #path to project zomboid remote server control script
+
 # ---------------- Discord Setup ----------------
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+def setup_logging():
+    # Console output: reuse discord.py's nice coloured formatter, but apply it to the
+    # ROOT logger so our own modules' messages appear too, not just discord.py's
+    discord.utils.setup_logging(level=logging.INFO, root=True)
+
+    # File output: bot.log, rotated so it can never grow forever
+    file_handler = RotatingFileHandler(
+        "bot.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setFormatter(logging.Formatter(
+        "[{asctime}] [{levelname:<8}] {name}: {message}",
+        "%Y-%m-%d %H:%M:%S",
+        style="{",
+    ))
+    logging.getLogger().addHandler(file_handler)
 
 def get_queue(guild_id):
     if guild_id not in SONG_QUEUES:
@@ -48,11 +68,12 @@ async def play_next(guild):
         return  #shouldn't happen
 
     def after_playing(err):
+        if err:
+            log.error("Playback error in guild %s: %s", guild.id, err)
         coro = play_next(guild)
         asyncio.run_coroutine_threadsafe(coro, bot.loop)
 
     vc.play(audio_source, after=after_playing)
-
 
 # ---------------- Play Command ----------------
 @bot.tree.command(name="play", description="Play a song from YouTube.")
@@ -154,7 +175,7 @@ async def say(interaction: discord.Interaction, text: str):
     engine.runAndWait()
 
     # Play the file through Discord voice
-    ffmpeg_path = r"C:\CODE_FOLDER\Python\Virtual_Environments\Python_DiscordBot\discordENV2\bin\ffmpeg\ffmpeg.exe"
+    ffmpeg_path = r"C:\CODE_FOLDER\Python\Virtual_Environments\Python_DiscordBot\discordENV2\bin\ffmpeg\ffmpeg.exe" #path to ffmpeg exe
 
     audio_source = discord.FFmpegPCMAudio(tts_path, executable=ffmpeg_path)
     voice_client.play(audio_source)
@@ -204,12 +225,10 @@ async def pz(interaction: discord.Interaction, action: app_commands.Choice[str])
 @bot.event
 async def on_ready():
     synced = await bot.tree.sync()
-    print(synced)
-    print(type(synced))
-    print(f"Globally synced {len(synced)} commands!")
+    log.info("Globally synced %d commands", len(synced))
     for c in synced:
-        print(" *", c.name)
-    print(f"{bot.user} is online!")
+        log.info(" * %s", c.name)
+    log.info("%s is online", bot.user)
 
-
-bot.run(TOKEN)
+setup_logging()
+bot.run(TOKEN, log_handler=None)
