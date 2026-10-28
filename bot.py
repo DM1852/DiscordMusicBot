@@ -65,6 +65,7 @@ async def play_next(guild):
 
     vc = guild.voice_client
     if vc is None:
+        log.warning("play_next: no voice client in guild %s, dropping %r", guild.id, next_song)
         return  #shouldn't happen
 
     def after_playing(err):
@@ -98,6 +99,7 @@ async def play(interaction: discord.Interaction, song_query: str):
     #YT search
     url, cookies = await asyncio.to_thread(discord_bot_yt_search.yt_search, song_query)
     if not url:
+        log.warning("No YouTube results for query %r", song_query)
         await interaction.followup.send("❌ No results found.")
         return
 
@@ -231,4 +233,7 @@ async def on_ready():
     log.info("%s is online", bot.user)
 
 setup_logging()
+if not TOKEN:
+    log.critical("DISCORD_TOKEN not found - is the .env file in the bot folder?")
+    raise SystemExit(1)
 bot.run(TOKEN, log_handler=None)

@@ -48,7 +48,7 @@ def yt_search(query: str):
         #get first video (skip ads)
         videos = driver.find_elements(By.XPATH, "//ytd-video-renderer//a[@id='video-title']")
         if not videos:
-            log.info("No video elements found.")
+            log.warning("No video elements found.")
             return None, None
 
         first_url = videos[0].get_attribute("href")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         url, cookies = yt_search(q)
 
         if not url:
-            log.info("Could not find video.")
+            log.warning("Could not find video.")
         else:
             # Save cookies to temp file
             tmp_cookiefile = os.path.join(tempfile.gettempdir(), "yt_cookies.txt")
