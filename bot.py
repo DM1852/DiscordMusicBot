@@ -126,6 +126,40 @@ async def play(interaction: discord.Interaction, song_query: str):
     if not voice_client.is_playing():
         await play_next(interaction.guild)
 
+# ---------------- Replay Command ----------------
+@bot.tree.command(name="replay", description="Play the last song again.")
+async def replay(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    last_song = LAST_PLAYED.get(interaction.guild.id)
+    if not last_song or not os.path.exists(last_song):
+        await interaction.followup.send("❌ Nothing to replay yet.")
+        return
+
+    user_vc = getattr(interaction.user.voice, "channel", None)
+    if not user_vc:
+        await interaction.followup.send("❌ You must be in a voice channel.")
+        return
+
+    # Voice connect/move logic (same as /play)
+    voice_client = interaction.guild.voice_client
+    if voice_client is None:
+        voice_client = await user_vc.connect()
+    elif voice_client.channel != user_vc:
+        await voice_client.move_to(user_vc)
+
+    # Put the song at the FRONT of the queue so it plays next
+    queue = get_queue(interaction.guild.id)
+    queue.insert(0, last_song)
+
+    await interaction.followup.send(f"🔁 Replaying: **{os.path.basename(last_song)}**")
+
+    if voice_client.is_playing():
+        voice_client.stop()   # ends the current song; after_playing -> play_next picks up our song
+    else:
+        await play_next(interaction.guild)
+
+
 # ---------------- Skip Command ----------------
 @bot.tree.command(name="skip", description="Skip the current song.")
 @app_commands.default_permissions()
