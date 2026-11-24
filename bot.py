@@ -20,6 +20,7 @@ SONG_QUEUES = {}
 GUILD_ID = 730099461816189009
 POWERSHELL_PATH = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" #path to powershell exe
 SCRIPT_PATH = r"C:\Users\AMDUser1\Desktop\PZ_Server_Scripts\pz.ps1" #path to project zomboid remote server control script
+LAST_PLAYED = {}
 
 # ---------------- Discord Setup ----------------
 intents = discord.Intents.default()
@@ -73,7 +74,7 @@ async def play_next(guild):
             log.error("Playback error in guild %s: %s", guild.id, err)
         coro = play_next(guild)
         asyncio.run_coroutine_threadsafe(coro, bot.loop)
-
+    LAST_PLAYED[guild.id] = next_song
     vc.play(audio_source, after=after_playing)
 
 # ---------------- Play Command ----------------
